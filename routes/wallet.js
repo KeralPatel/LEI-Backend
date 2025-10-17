@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { authenticateToken, checkBalance } = require('../middleware/auth');
+const { authenticate, checkBalance } = require('../middleware/auth');
 const custodialWalletService = require('../services/custodialWalletService');
 const encryptionService = require('../services/encryptionService');
 
@@ -11,7 +11,7 @@ const router = express.Router();
  * @desc    Get user's token balance
  * @access  Private
  */
-router.get('/balance', authenticateToken, async (req, res) => {
+router.get('/balance', authenticate, async (req, res) => {
   try {
     const user = req.user;
     const tokenContractAddress = process.env.TOKEN_CONTRACT_ADDRESS;
@@ -51,7 +51,7 @@ router.get('/balance', authenticateToken, async (req, res) => {
  * @desc    Get user's native token balance (KDA)
  * @access  Private
  */
-router.get('/native-balance', authenticateToken, async (req, res) => {
+router.get('/native-balance', authenticate, async (req, res) => {
   try {
     const user = req.user;
     
@@ -81,7 +81,7 @@ router.get('/native-balance', authenticateToken, async (req, res) => {
  * @access  Private
  */
 router.post('/deposit', [
-  authenticateToken,
+  authenticate,
   body('amount').isFloat({ min: 0.01 }).withMessage('Amount must be greater than 0')
 ], async (req, res) => {
   try {
@@ -141,7 +141,7 @@ router.post('/deposit', [
  * @access  Private
  */
 router.post('/withdraw', [
-  authenticateToken,
+  authenticate,
   body('toAddress').isLength({ min: 42, max: 42 }).withMessage('Valid wallet address is required'),
   body('amount').isFloat({ min: 0.01 }).withMessage('Amount must be greater than 0'),
   body('type').isIn(['tokens', 'native']).withMessage('Type must be either tokens or native')
@@ -255,7 +255,7 @@ router.post('/withdraw', [
  * @desc    Get user's transaction history (placeholder)
  * @access  Private
  */
-router.get('/transactions', authenticateToken, async (req, res) => {
+router.get('/transactions', authenticate, async (req, res) => {
   try {
     // This would typically fetch from a transactions table
     // For now, return a placeholder response

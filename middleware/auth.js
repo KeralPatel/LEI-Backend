@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const ApiKey = require('../models/ApiKey');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -44,7 +45,85 @@ const authenticateToken = async (req, res, next) => {
     }
 
     req.user = user;
+    req.authType = 'jwt';
     next();
+  } catch (error) {
+    console.error('Authentication error:', error);
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        error: 'Token expired',
+        message: 'Your authentication token has expired. Please log in again.',
+        code: 'TOKEN_EXPIRED'
+      });
+    } else if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid token',
+        message: 'The provided authentication token is invalid. Please log in again.',
+        code: 'INVALID_TOKEN'
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        error: 'Authentication failed',
+        message: 'An error occurred during authentication. Please try again.',
+        code: 'AUTH_ERROR'
+      });
+    }
+  }
+};
+
+/**
+ * Flexible authentication - supports both JWT and API key
+ */
+const authenticate = async (req, res, next) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const apiKey = req.headers['x-api-key'] || req.query.api_key;
+    
+    // Try API key authentication first
+    if (apiKey || (authHeader && authHeader.startsWith('Bearer tk_'))) {
+      const key = apiKey || (authHeader && authHeader.substring(7));
+      
+      if (key) {
+        const apiKeyRecord = await ApiKey.findByKey(key);
+        
+        if (apiKeyRecord && apiKeyRecord.isValid() && apiKeyRecord.user && apiKeyRecord.user.is_active) {
+          await apiKeyRecord.updateLastUsed();
+          req.user = apiKeyRecord.user;
+          req.apiKey = apiKeyRecord;
+          req.authType = 'api_key';
+          return next();
+        }
+      }
+    }
+    
+    // Fall back to JWT authentication
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      
+      if (token && !token.startsWith('tk_')) { // Not an API key
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const user = await User.findByPk(decoded.userId, {
+          attributes: { exclude: ['password'] }
+        });
+        
+        if (user && user.is_active) {
+          req.user = user;
+          req.authType = 'jwt';
+          return next();
+        }
+      }
+    }
+    
+    return res.status(401).json({
+      success: false,
+      error: 'Authentication required',
+      message: 'Please provide a valid JWT token or API key for authentication.',
+      code: 'AUTHENTICATION_REQUIRED'
+    });
+    
   } catch (error) {
     console.error('Authentication error:', error);
     if (error.name === 'TokenExpiredError') {
@@ -163,6 +242,7 @@ const checkBalance = async (req, res, next) => {
 
 module.exports = {
   authenticateToken,
+  authenticate,
   generateToken,
   optionalAuth,
   checkBalance

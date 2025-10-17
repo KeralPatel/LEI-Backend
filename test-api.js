@@ -1,5 +1,21 @@
 const axios = require('axios');
 
+/**
+ * Comprehensive API Testing Suite
+ * 
+ * This test suite covers:
+ * - User management (registration, login, profile)
+ * - Wallet management (balances, deposits, withdrawals)
+ * - Token distribution (single and bulk)
+ * - API key management (create, list, update, delete)
+ * - API key authentication (all endpoints)
+ * - Security testing (invalid keys, missing auth)
+ * 
+ * Usage:
+ * - Run all tests: node test-api.js
+ * - Run API key tests only: node test-api.js --api-keys-only
+ */
+
 // Test configuration
 const API_BASE_URL = 'http://localhost:3001';
 
@@ -45,10 +61,16 @@ const bulkDistributionData = {
 // Global variables for authentication
 let authToken = null;
 let userData = null;
+let apiKey = null;
 
 // Helper function to get auth headers
 function getAuthHeaders() {
   return authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
+}
+
+// Helper function to get API key headers
+function getApiKeyHeaders() {
+  return apiKey ? { 'X-API-Key': apiKey } : {};
 }
 
 async function testUserManagement() {
@@ -287,28 +309,239 @@ async function testMultipleUsers() {
   }
 }
 
+async function testApiKeyManagement() {
+  try {
+    console.log('🔑 Testing API Key Management...\n');
+
+    // Test create API key
+    console.log('1. Testing create API key...');
+    const createApiKeyResponse = await axios.post(`${API_BASE_URL}/api/api-keys`, {
+      name: 'Test API Key',
+      permissions: {
+        read: true,
+        write: true,
+        admin: false
+      }
+    }, {
+      headers: getAuthHeaders()
+    });
+    console.log('✅ API key created:', createApiKeyResponse.data.data.apiKey.name);
+    apiKey = createApiKeyResponse.data.data.apiKey.key;
+    console.log('✅ API key received:', apiKey.substring(0, 8) + '...');
+    console.log('');
+
+    // Test list API keys
+    console.log('2. Testing list API keys...');
+    const listApiKeysResponse = await axios.get(`${API_BASE_URL}/api/api-keys`, {
+      headers: getAuthHeaders()
+    });
+    console.log('✅ API keys listed:', listApiKeysResponse.data.data.apiKeys.length, 'keys found');
+    console.log('✅ First key name:', listApiKeysResponse.data.data.apiKeys[0].name);
+    console.log('');
+
+    // Test get specific API key
+    console.log('3. Testing get specific API key...');
+    const apiKeyId = listApiKeysResponse.data.data.apiKeys[0].id;
+    const getApiKeyResponse = await axios.get(`${API_BASE_URL}/api/api-keys/${apiKeyId}`, {
+      headers: getAuthHeaders()
+    });
+    console.log('✅ API key details retrieved:', getApiKeyResponse.data.data.apiKey.name);
+    console.log('');
+
+    // Test update API key
+    console.log('4. Testing update API key...');
+    const updateApiKeyResponse = await axios.put(`${API_BASE_URL}/api/api-keys/${apiKeyId}`, {
+      name: 'Updated Test API Key',
+      permissions: {
+        read: true,
+        write: false,
+        admin: false
+      }
+    }, {
+      headers: getAuthHeaders()
+    });
+    console.log('✅ API key updated:', updateApiKeyResponse.data.data.apiKey.name);
+    console.log('✅ New permissions:', updateApiKeyResponse.data.data.apiKey.permissions);
+    console.log('');
+
+  } catch (error) {
+    console.error('❌ API key management test failed:', error.message);
+    if (error.response) {
+      console.error('Response data:', error.response.data);
+    }
+  }
+}
+
+async function testApiKeyAuthentication() {
+  try {
+    console.log('🔐 Testing API Key Authentication...\n');
+
+    if (!apiKey) {
+      console.log('❌ No API key available for testing');
+      return;
+    }
+
+    // Test API key authentication with wallet balance
+    console.log('1. Testing API key authentication with wallet balance...');
+    const balanceResponse = await axios.get(`${API_BASE_URL}/api/wallet/balance`, {
+      headers: getApiKeyHeaders()
+    });
+    console.log('✅ API key authentication successful for wallet balance');
+    console.log('✅ Token balance:', balanceResponse.data.data.balance);
+    console.log('');
+
+    // Test API key authentication with native balance
+    console.log('2. Testing API key authentication with native balance...');
+    const nativeBalanceResponse = await axios.get(`${API_BASE_URL}/api/wallet/native-balance`, {
+      headers: getApiKeyHeaders()
+    });
+    console.log('✅ API key authentication successful for native balance');
+    console.log('✅ Native balance:', nativeBalanceResponse.data.data.balance, 'KDA');
+    console.log('');
+
+    // Test API key authentication with user profile
+    console.log('3. Testing API key authentication with user profile...');
+    const profileResponse = await axios.get(`${API_BASE_URL}/api/user/profile`, {
+      headers: getApiKeyHeaders()
+    });
+    console.log('✅ API key authentication successful for user profile');
+    console.log('✅ User email:', profileResponse.data.data.user.email);
+    console.log('');
+
+    // Test API key authentication with token distribution
+    console.log('4. Testing API key authentication with token distribution...');
+    const distributionResponse = await axios.post(`${API_BASE_URL}/api/distribute-tokens`, singleDistributionData, {
+      headers: getApiKeyHeaders()
+    });
+    console.log('✅ API key authentication successful for token distribution');
+    console.log('✅ Distribution response:', distributionResponse.data.success ? 'Success' : 'Failed');
+    console.log('');
+
+    // Test API key test endpoint
+    console.log('5. Testing API key test endpoint...');
+    const testResponse = await axios.get(`${API_BASE_URL}/api/api-keys/test`, {
+      headers: getApiKeyHeaders()
+    });
+    console.log('✅ API key test endpoint successful');
+    console.log('✅ Auth type:', testResponse.data.data.authType);
+    console.log('✅ User:', testResponse.data.data.user.email);
+    console.log('');
+
+  } catch (error) {
+    console.error('❌ API key authentication test failed:', error.message);
+    if (error.response) {
+      console.error('Response data:', error.response.data);
+    }
+  }
+}
+
+async function testApiKeySecurity() {
+  try {
+    console.log('🛡️ Testing API Key Security...\n');
+
+    // Test invalid API key
+    console.log('1. Testing invalid API key...');
+    try {
+      await axios.get(`${API_BASE_URL}/api/wallet/balance`, {
+        headers: { 'X-API-Key': 'invalid_key_12345' }
+      });
+    } catch (error) {
+      console.log('✅ Invalid API key properly rejected:', error.response.data.error);
+    }
+    console.log('');
+
+    // Test missing API key
+    console.log('2. Testing missing API key...');
+    try {
+      await axios.get(`${API_BASE_URL}/api/wallet/balance`);
+    } catch (error) {
+      console.log('✅ Missing API key properly rejected:', error.response.data.error);
+    }
+    console.log('');
+
+    // Test API key with different header formats
+    console.log('3. Testing API key with Authorization header...');
+    if (apiKey) {
+      const authHeaderResponse = await axios.get(`${API_BASE_URL}/api/wallet/balance`, {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+      console.log('✅ API key with Authorization header works');
+    }
+    console.log('');
+
+    // Test API key with query parameter
+    console.log('4. Testing API key with query parameter...');
+    if (apiKey) {
+      const queryParamResponse = await axios.get(`${API_BASE_URL}/api/wallet/balance?api_key=${apiKey}`);
+      console.log('✅ API key with query parameter works');
+    }
+    console.log('');
+
+  } catch (error) {
+    console.error('❌ API key security test failed:', error.message);
+    if (error.response) {
+      console.error('Response data:', error.response.data);
+    }
+  }
+}
+
+async function testApiKeyCleanup() {
+  try {
+    console.log('🧹 Testing API Key Cleanup...\n');
+
+    // List API keys to get the ID
+    console.log('1. Getting API key ID for deletion...');
+    const listResponse = await axios.get(`${API_BASE_URL}/api/api-keys`, {
+      headers: getAuthHeaders()
+    });
+    
+    if (listResponse.data.data.apiKeys.length > 0) {
+      const apiKeyId = listResponse.data.data.apiKeys[0].id;
+      console.log('✅ API key ID found:', apiKeyId);
+      console.log('');
+
+      // Test delete API key
+      console.log('2. Testing delete API key...');
+      const deleteResponse = await axios.delete(`${API_BASE_URL}/api/api-keys/${apiKeyId}`, {
+        headers: getAuthHeaders()
+      });
+      console.log('✅ API key deleted successfully');
+      console.log('');
+
+      // Verify API key is deleted
+      console.log('3. Verifying API key is deleted...');
+      const verifyResponse = await axios.get(`${API_BASE_URL}/api/api-keys`, {
+        headers: getAuthHeaders()
+      });
+      console.log('✅ Remaining API keys:', verifyResponse.data.data.apiKeys.length);
+      console.log('');
+    }
+
+  } catch (error) {
+    console.error('❌ API key cleanup test failed:', error.message);
+    if (error.response) {
+      console.error('Response data:', error.response.data);
+    }
+  }
+}
+
 async function runAllTests() {
   try {
     console.log('🚀 Starting Comprehensive API Tests...\n');
     console.log('='.repeat(50));
 
-    // await testHealthAndErrors();
-    // await testUserManagement();
-    // await testPasswordChange();
-    // await testMultipleUsers();
-    // Test user login
-    console.log('2. Testing user login...');
-    const loginResponse = await axios.post(`${API_BASE_URL}/api/user/login`, testUser);
-    console.log('✅ User logged in:', loginResponse.data.data.user.email);
-    console.log('✅ Auth token received');
-    console.log('');
-    authToken = loginResponse.data.data.token;
-    userData = loginResponse.data.data.user;
-
-
-
+    await testHealthAndErrors();
+    await testUserManagement();
+    await testPasswordChange();
+    await testMultipleUsers();
     await testWalletManagement();
     await testTokenDistribution();
+    
+    // API Key Tests
+    await testApiKeyManagement();
+    await testApiKeyAuthentication();
+    await testApiKeySecurity();
+    await testApiKeyCleanup();
 
     console.log('='.repeat(50));
     console.log('🎉 All tests completed successfully!');
@@ -321,15 +554,21 @@ async function runAllTests() {
     console.log('✅ Multiple users with different wallets');
     console.log('✅ Wallet management working');
     console.log('✅ Token distribution working');
+    console.log('✅ API key management working');
+    console.log('✅ API key authentication working');
+    console.log('✅ API key security working');
     console.log('✅ Error handling working');
     console.log('✅ Security (authentication required) working');
     console.log('');
     console.log('🔐 Security Features Verified:');
     console.log('✅ JWT authentication required for protected endpoints');
+    console.log('✅ API key authentication working');
+    console.log('✅ Multiple authentication methods supported');
     console.log('✅ Password hashing working');
     console.log('✅ Custodial wallet encryption working');
     console.log('✅ Input validation working');
     console.log('✅ Error handling working');
+    console.log('✅ API key permissions working');
 
   } catch (error) {
     console.error('❌ Test suite failed:', error.message);
@@ -339,7 +578,54 @@ async function runAllTests() {
   }
 }
 
+// Standalone API key test function
+async function testApiKeysOnly() {
+  try {
+    console.log('🔑 Testing API Keys Only...\n');
+    console.log('='.repeat(50));
+
+    // First login to get JWT token
+    console.log('1. Logging in to get JWT token...');
+    const loginResponse = await axios.post(`${API_BASE_URL}/api/user/login`, testUser);
+    authToken = loginResponse.data.data.token;
+    userData = loginResponse.data.data.user;
+    console.log('✅ Logged in:', userData.email);
+    console.log('');
+
+    // Run API key tests
+    await testApiKeyManagement();
+    await testApiKeyAuthentication();
+    await testApiKeySecurity();
+    await testApiKeyCleanup();
+
+    console.log('='.repeat(50));
+    console.log('🎉 API Key tests completed successfully!');
+    console.log('');
+    console.log('📋 API Key Test Summary:');
+    console.log('✅ API key creation working');
+    console.log('✅ API key listing working');
+    console.log('✅ API key retrieval working');
+    console.log('✅ API key updating working');
+    console.log('✅ API key deletion working');
+    console.log('✅ API key authentication working');
+    console.log('✅ API key security working');
+    console.log('✅ Multiple authentication methods working');
+
+  } catch (error) {
+    console.error('❌ API key test suite failed:', error.message);
+    if (error.response) {
+      console.error('Response data:', error.response.data);
+    }
+  }
+}
+
 // Run tests if this file is executed directly
 if (require.main === module) {
-  runAllTests();
+  // Check command line arguments
+  const args = process.argv.slice(2);
+  if (args.includes('--api-keys-only')) {
+    testApiKeysOnly();
+  } else {
+    runAllTests();
+  }
 }

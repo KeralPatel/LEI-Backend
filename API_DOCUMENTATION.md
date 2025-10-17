@@ -13,26 +13,59 @@ This is a Node.js backend API for token distribution on the Knightsbridge networ
 1. [Authentication](#authentication)
 2. [Health Check](#health-check)
 3. [User Management](#user-management)
-4. [Wallet Management](#wallet-management)
-5. [Token Distribution](#token-distribution)
-6. [Error Handling](#error-handling)
-7. [Rate Limiting](#rate-limiting)
-8. [Security](#security)
+4. [API Key Management](#api-key-management)
+5. [Wallet Management](#wallet-management)
+6. [Token Distribution](#token-distribution)
+7. [Error Handling](#error-handling)
+8. [Rate Limiting](#rate-limiting)
+9. [Security](#security)
 
 ---
 
 ## Authentication
 
-The API uses JWT (JSON Web Tokens) for authentication. Include the token in the Authorization header:
+The API supports two authentication methods:
+
+### 1. JWT Authentication
+Include the JWT token in the Authorization header:
 
 ```
 Authorization: Bearer <your-jwt-token>
 ```
 
-### Token Format
+**Token Format:**
 - **Algorithm:** HS256
 - **Expiration:** 24 hours
 - **Secret:** Configurable via `JWT_SECRET` environment variable
+
+### 2. API Key Authentication
+Include the API key in one of the following ways:
+
+**Option 1: Authorization Header**
+```
+Authorization: Bearer <your-api-key>
+```
+
+**Option 2: X-API-Key Header**
+```
+X-API-Key: <your-api-key>
+```
+
+**Option 3: Query Parameter**
+```
+GET /api/endpoint?api_key=<your-api-key>
+```
+
+**API Key Format:**
+- **Prefix:** `tk_`
+- **Length:** 64 characters
+- **Example:** `tk_a1b2c3d4e5f6...`
+
+### Authentication Priority
+The API will try authentication in this order:
+1. API key authentication (if key starts with `tk_`)
+2. JWT token authentication
+3. Return authentication error if neither is valid
 
 ---
 
@@ -219,6 +252,232 @@ Get user's custodial wallet information.
     "wallet": {
       "address": "0x..."
     }
+  }
+}
+```
+
+---
+
+## API Key Management
+
+### POST /api/api-keys
+
+Create a new API key for the authenticated user.
+
+**Authentication:** JWT token required
+
+**Request Body:**
+```json
+{
+  "name": "My API Key",
+  "permissions": {
+    "read": true,
+    "write": true,
+    "admin": false
+  },
+  "expiresAt": "2024-12-31T23:59:59.000Z"
+}
+```
+
+**Validation:**
+- `name`: Required, 1-100 characters
+- `permissions`: Optional object with read/write/admin permissions
+- `expiresAt`: Optional ISO 8601 date (must be in the future)
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "API key created successfully",
+  "data": {
+    "apiKey": {
+      "id": "uuid",
+      "name": "My API Key",
+      "key": "tk_a1b2c3d4e5f6...",
+      "keyPrefix": "tk_a1b2c3...",
+      "permissions": {
+        "read": true,
+        "write": true,
+        "admin": false
+      },
+      "expiresAt": "2024-12-31T23:59:59.000Z",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  }
+}
+```
+
+**Error Responses:**
+- `400`: Validation failed or API key limit exceeded (max 10 per user)
+- `401`: Authentication required
+- `500`: Server error
+
+---
+
+### GET /api/api-keys
+
+List all API keys for the authenticated user.
+
+**Authentication:** JWT token required
+
+**Query Parameters:**
+- `page`: Page number (default: 1)
+- `limit`: Items per page (default: 20, max: 100)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "apiKeys": [
+      {
+        "id": "uuid",
+        "name": "My API Key",
+        "keyPrefix": "tk_a1b2c3...",
+        "permissions": {
+          "read": true,
+          "write": true,
+          "admin": false
+        },
+        "isActive": true,
+        "lastUsed": "2024-01-01T12:00:00.000Z",
+        "expiresAt": "2024-12-31T23:59:59.000Z",
+        "createdAt": "2024-01-01T00:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "totalPages": 1,
+      "hasNext": false,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+---
+
+### GET /api/api-keys/:id
+
+Get details of a specific API key.
+
+**Authentication:** JWT token required
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "apiKey": {
+      "id": "uuid",
+      "name": "My API Key",
+      "keyPrefix": "tk_a1b2c3...",
+      "permissions": {
+        "read": true,
+        "write": true,
+        "admin": false
+      },
+      "isActive": true,
+      "lastUsed": "2024-01-01T12:00:00.000Z",
+      "expiresAt": "2024-12-31T23:59:59.000Z",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  }
+}
+```
+
+---
+
+### PUT /api/api-keys/:id
+
+Update an API key (name, permissions, or active status).
+
+**Authentication:** JWT token required
+
+**Request Body:**
+```json
+{
+  "name": "Updated API Key Name",
+  "permissions": {
+    "read": true,
+    "write": false,
+    "admin": false
+  },
+  "isActive": true
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "API key updated successfully",
+  "data": {
+    "apiKey": {
+      "id": "uuid",
+      "name": "Updated API Key Name",
+      "keyPrefix": "tk_a1b2c3...",
+      "permissions": {
+        "read": true,
+        "write": false,
+        "admin": false
+      },
+      "isActive": true,
+      "lastUsed": "2024-01-01T12:00:00.000Z",
+      "expiresAt": "2024-12-31T23:59:59.000Z",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  }
+}
+```
+
+---
+
+### DELETE /api/api-keys/:id
+
+Revoke (delete) an API key.
+
+**Authentication:** JWT token required
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "API key revoked successfully"
+}
+```
+
+---
+
+### GET /api/api-keys/test
+
+Test API key authentication.
+
+**Authentication:** API key required
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "API key authentication successful",
+  "data": {
+    "user": {
+      "id": "uuid",
+      "email": "user@example.com"
+    },
+    "apiKey": {
+      "id": "uuid",
+      "name": "My API Key",
+      "permissions": {
+        "read": true,
+        "write": true,
+        "admin": false
+      },
+      "lastUsed": "2024-01-01T12:00:00.000Z"
+    },
+    "authType": "api_key"
   }
 }
 ```

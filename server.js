@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 // Token distribution now handled by routes/distribution.js
 const { sequelize, testConnection } = require('./config/database');
 const User = require('./models/User');
+const ApiKey = require('./models/ApiKey');
 require('dotenv').config();
 
 const app = express();
@@ -51,10 +52,12 @@ app.use(session({
 const userRoutes = require('./routes/user');
 const walletRoutes = require('./routes/wallet');
 const distributionRoutes = require('./routes/distribution');
+const apiKeyRoutes = require('./routes/apiKeys');
 
 // Route imports
 app.use('/api/user', userRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/api-keys', apiKeyRoutes);
 app.use('/api', distributionRoutes);
 
 // Health check endpoint
@@ -87,6 +90,7 @@ const startServer = async () => {
       console.log(`🔗 API endpoints:`);
       console.log(`   - User: http://localhost:${PORT}/api/user`);
       console.log(`   - Wallet: http://localhost:${PORT}/api/wallet`);
+      console.log(`   - API Keys: http://localhost:${PORT}/api/api-keys`);
       console.log(`   - Distribution: http://localhost:${PORT}/api/distribute-tokens`);
     });
   } catch (error) {

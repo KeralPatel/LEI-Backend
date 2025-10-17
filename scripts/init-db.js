@@ -1,5 +1,7 @@
 const { sequelize } = require('../config/database');
 const User = require('../models/User');
+const apiKey = require('../models/ApiKey');
+
 require('dotenv').config();
 
 async function initializeDatabase() {

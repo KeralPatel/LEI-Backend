@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 const custodialWalletService = require('../services/custodialWalletService');
 const encryptionService = require('../services/encryptionService');
 const User = require('../models/User');
@@ -13,7 +13,7 @@ const router = express.Router();
  * @access  Private
  */
 router.post('/distribute-tokens', [
-  authenticateToken,
+  authenticate,
   body().custom((value) => {
     // Check if it's single recipient format
     if (value.name && value.email && value.id && value.walletAddress && value.hrsWorked) {
@@ -204,7 +204,7 @@ router.post('/distribute-tokens', [
  * @access  Private
  */
 router.post('/distribute-tokens-bulk', [
-  authenticateToken,
+  authenticate,
   body('recipients').isArray({ min: 1 }).withMessage('Recipients array is required with at least one recipient'),
   body('recipients.*.name').notEmpty().withMessage('Name is required for each recipient'),
   body('recipients.*.email').isEmail().withMessage('Valid email is required for each recipient'),

@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
-const { generateToken, authenticateToken } = require('../middleware/auth');
+const { generateToken, authenticate } = require('../middleware/auth');
 const custodialWalletService = require('../services/custodialWalletService');
 const encryptionService = require('../services/encryptionService');
 
@@ -43,18 +43,12 @@ router.post('/register', [
     // Generate custodial wallet
     const custodialWallet = custodialWalletService.generateCustodialWallet();
 
-    console.log('custodialWallet', custodialWallet);
     const encryptedPrivateKey = encryptionService.encrypt(custodialWallet.privateKey);
     const encryptedMnemonic = encryptionService.encrypt(custodialWallet.mnemonic);
 
     const decryptedPrivateKey = encryptionService.decrypt(encryptedPrivateKey);
     const decryptedMnemonic = encryptionService.decrypt(encryptedMnemonic);
     
-
-    console.log('decryptedPrivateKey', decryptedPrivateKey);
-    console.log('decryptedMnemonic', decryptedMnemonic);
-    console.log('encryptedPrivateKey', encryptedPrivateKey);
-    console.log('encryptedMnemonic', encryptedMnemonic);
 
     // Create user
     const user = await User.create({
@@ -171,7 +165,7 @@ router.post('/login', [
  * @desc    Get user profile
  * @access  Private
  */
-router.get('/profile', authenticateToken, async (req, res) => {
+router.get('/profile', authenticate, async (req, res) => {
   try {
     res.json({
       success: true,
@@ -194,7 +188,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
  * @access  Private
  */
 router.post('/change-password', [
-  authenticateToken,
+  authenticate,
   body('currentPassword').notEmpty().withMessage('Current password is required'),
   body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
 ], async (req, res) => {
@@ -250,7 +244,7 @@ router.post('/change-password', [
  * @desc    Get user's custodial wallet info
  * @access  Private
  */
-router.get('/wallet', authenticateToken, async (req, res) => {
+router.get('/wallet', authenticate, async (req, res) => {
   try {
     const user = req.user;
     

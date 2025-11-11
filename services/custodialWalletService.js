@@ -182,8 +182,6 @@ class CustodialWalletService {
             success: true,
             recipient: {
               name: recipient.name,
-              email: recipient.email,
-              id: recipient.id,
               wallet: recipient.wallet
             },
             distribution: {
@@ -203,8 +201,6 @@ class CustodialWalletService {
             success: false,
             recipient: {
               name: recipient.name,
-              email: recipient.email,
-              id: recipient.id,
               wallet: recipient.wallet
             },
             distribution: {

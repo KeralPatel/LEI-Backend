@@ -16,7 +16,7 @@ router.post('/distribute-tokens', [
   authenticate,
   body().custom((value) => {
     // Check if it's single recipient format
-    if (value.name && value.email && value.id && value.walletAddress && value.hrsWorked) {
+    if (value.name && value.walletAddress && value.hrsWorked) {
       return true;
     }
     // Check if it's bulk recipients format
@@ -61,10 +61,10 @@ router.post('/distribute-tokens', [
       // Validate all recipients
       for (let i = 0; i < recipients.length; i++) {
         const recipient = recipients[i];
-        if (!recipient.name || !recipient.email || !recipient.id || !recipient.wallet || !recipient.hrsWorked) {
+        if (!recipient.name || !recipient.wallet || !recipient.hrsWorked) {
           return res.status(400).json({
             success: false,
-            error: `Missing required fields for recipient ${i + 1}: name, email, id, wallet, hrsWorked`
+            error: `Missing required fields for recipient ${i + 1}: name, wallet, hrsWorked`
           });
         }
 
@@ -118,12 +118,12 @@ router.post('/distribute-tokens', [
 
     } else {
       // Single recipient (backward compatibility)
-      const { name, email, id, walletAddress, hrsWorked } = body;
+      const { name, walletAddress, hrsWorked } = body;
 
-      if (!name || !email || !id || !walletAddress || !hrsWorked) {
+      if (!name || !walletAddress || !hrsWorked) {
         return res.status(400).json({
           success: false,
-          error: 'Missing required fields: name, email, id, walletAddress, hrsWorked'
+          error: 'Missing required fields: name, walletAddress, hrsWorked'
         });
       }
 
@@ -174,8 +174,6 @@ router.post('/distribute-tokens', [
         data: {
           recipient: {
             name,
-            email,
-            id,
             walletAddress
           },
           distribution: {
@@ -207,8 +205,6 @@ router.post('/distribute-tokens-bulk', [
   authenticate,
   body('recipients').isArray({ min: 1 }).withMessage('Recipients array is required with at least one recipient'),
   body('recipients.*.name').notEmpty().withMessage('Name is required for each recipient'),
-  body('recipients.*.email').isEmail().withMessage('Valid email is required for each recipient'),
-  body('recipients.*.id').notEmpty().withMessage('ID is required for each recipient'),
   body('recipients.*.wallet').isLength({ min: 42, max: 42 }).withMessage('Valid wallet address is required for each recipient'),
   body('recipients.*.hrsWorked').isFloat({ min: 0.01 }).withMessage('Hours worked must be greater than 0')
 ], async (req, res) => {

@@ -83,8 +83,8 @@ const startServer = async () => {
     await sequelize.sync({ alter: true });
     console.log('✅ Database models synchronized');
     
-    // Start server
-    app.listen(PORT, () => {
+    // Start server with increased timeout for long-running operations
+    const server = app.listen(PORT, () => {
       console.log(`🚀 Backend server running on port ${PORT}`);
       console.log(`📡 Health check: http://localhost:${PORT}/health`);
       console.log(`🔗 API endpoints:`);
@@ -93,6 +93,11 @@ const startServer = async () => {
       console.log(`   - API Keys: http://localhost:${PORT}/api/api-keys`);
       console.log(`   - Distribution: http://localhost:${PORT}/api/distribute-tokens`);
     });
+    
+    // Set server timeout to 10 minutes for long-running operations like bulk token distributions
+    server.timeout = 600000; // 10 minutes in milliseconds
+    server.keepAliveTimeout = 65000; // Keep connections alive
+    server.headersTimeout = 66000; // Headers timeout should be slightly higher than keepAliveTimeout
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);

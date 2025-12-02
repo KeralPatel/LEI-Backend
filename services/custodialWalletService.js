@@ -157,7 +157,7 @@ class CustodialWalletService {
   /**
    * Distribute tokens from custodial wallet to multiple recipients
    */
-  async distributeFromCustodialWallet(fromWalletPrivateKey, recipients, tokenContractAddress) {
+  async distributeFromCustodialWallet(fromWalletPrivateKey, recipients, tokenContractAddress, onProgress = null) {
     try {
       console.log(`Distributing tokens from custodial wallet to ${recipients.length} recipients`);
       
@@ -171,6 +171,17 @@ class CustodialWalletService {
         try {
           console.log(`Processing recipient ${i + 1}/${recipients.length}: ${recipient.name}`);
           
+          // Send progress update if callback provided
+          if (onProgress) {
+            onProgress({
+              type: 'progress',
+              current: i + 1,
+              total: recipients.length,
+              recipient: recipient.name,
+              status: 'processing'
+            });
+          }
+          
           const result = await this.withdrawTokens(
             fromWalletPrivateKey,
             recipient.wallet,
@@ -178,7 +189,7 @@ class CustodialWalletService {
             tokenContractAddress
           );
           
-          results.push({
+          const distributionResult = {
             success: true,
             recipient: {
               name: recipient.name,
@@ -190,14 +201,26 @@ class CustodialWalletService {
               rate: '1 token per hour'
             },
             transaction: result
-          });
+          };
+          
+          results.push(distributionResult);
+          
+          // Send success progress update
+          if (onProgress) {
+            onProgress({
+              type: 'result',
+              current: i + 1,
+              total: recipients.length,
+              result: distributionResult
+            });
+          }
           
           console.log(`Successfully distributed ${tokensToDistribute} tokens to ${recipient.name}`);
           
         } catch (error) {
           console.error(`Failed to distribute tokens to ${recipient.name}:`, error);
           
-          results.push({
+          const distributionResult = {
             success: false,
             recipient: {
               name: recipient.name,
@@ -209,7 +232,19 @@ class CustodialWalletService {
               rate: '1 token per hour'
             },
             error: error.message
-          });
+          };
+          
+          results.push(distributionResult);
+          
+          // Send failure progress update
+          if (onProgress) {
+            onProgress({
+              type: 'result',
+              current: i + 1,
+              total: recipients.length,
+              result: distributionResult
+            });
+          }
         }
       }
       

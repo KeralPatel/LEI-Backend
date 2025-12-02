@@ -79,8 +79,7 @@ For complete API documentation with all endpoints, request/response examples, an
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| POST | `/api/distribute-tokens` | Distribute tokens (single) | Yes |
-| POST | `/api/distribute-tokens-bulk` | Bulk token distribution | Yes |
+| POST | `/api/distribute-tokens` | Distribute tokens (single/bulk) | Yes |
 | GET | `/api/distributions` | Get distributions (placeholder) | No |
 
 ### 🏥 System Endpoints
